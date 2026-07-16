@@ -59,6 +59,23 @@ async def verify_api_key(
 
 
 # ---------------------------------------------------------------------------
+# Responses — always declare the charset
+# ---------------------------------------------------------------------------
+class UTF8JSONResponse(JSONResponse):
+    """JSON response that declares `charset=utf-8` in its Content-Type.
+
+    JSON is UTF-8 by RFC 8259 and Starlette therefore omits the charset param,
+    but clients that sniff the encoding instead of assuming it can guess wrong:
+    the RUES text we return pads its tables with hundreds of NBSP (bytes C2 A0),
+    which reads as a strong GBK signal, and n8n's HTTP node decoded a response
+    as GB18030 — turning "máxima" into "m谩xima". Declaring the charset removes
+    the ambiguity for every consumer.
+    """
+
+    media_type = "application/json; charset=utf-8"
+
+
+# ---------------------------------------------------------------------------
 # Rate limiting — keyed by client IP
 # ---------------------------------------------------------------------------
 limiter = Limiter(key_func=get_remote_address)
@@ -67,7 +84,7 @@ limiter = Limiter(key_func=get_remote_address)
 def _rate_limit_exceeded_handler(
     request: Request, exc: RateLimitExceeded
 ) -> JSONResponse:
-    return JSONResponse(
+    return UTF8JSONResponse(
         status_code=429,
         content={"detail": f"Rate limit exceeded: {exc.detail}"},
     )
@@ -106,6 +123,7 @@ app = FastAPI(
     description="Consulta bases de datos publicas oficiales de empresas por identificador tributario.",
     version=__version__,
     lifespan=lifespan,
+    default_response_class=UTF8JSONResponse,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
