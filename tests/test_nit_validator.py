@@ -1,14 +1,16 @@
 """Tests for NIT validator.
 
-El validador siempre retorna el NIT base (sin digito de verificacion)
-porque el RUES no acepta el DV.
+Con guion, el DV explicito se descarta y se retorna la base.
+Sin guion, el numero se retorna INTACTO (un valor de 10 digitos es ambiguo:
+cedula de 10 digitos vs NIT base+DV); co_rues_service decide en tiempo de
+busqueda (full primero, fallback a los primeros 9 digitos).
 """
 
 from app.services.nit_validator import compute_check_digit, validate_nit
 
 
 class TestValidateNitFormats:
-    """Acepta NIT con/sin DV, con/sin guion — siempre retorna solo la base."""
+    """Acepta NIT/cedula con/sin DV, con/sin guion."""
 
     def test_9_digits_no_dv(self):
         nit, errors = validate_nit("900123456")
@@ -20,9 +22,23 @@ class TestValidateNitFormats:
         assert nit == "900123456"
         assert errors == []
 
-    def test_10_digits_no_hyphen(self):
+    def test_10_digits_no_hyphen_kept_full(self):
+        # No-hyphen 10-digit es ambiguo (cedula vs NIT+DV); ya no se trunca.
+        # El fallback de co_rues_service prueba los primeros 9 si RUES no da card.
         nit, errors = validate_nit("9001234561")
-        assert nit == "900123456"
+        assert nit == "9001234561"
+        assert errors == []
+
+    def test_10_digit_cedula_kept_full(self):
+        # Persona natural: la cedula de 10 digitos se preserva intacta.
+        nit, errors = validate_nit("1010183001")
+        assert nit == "1010183001"
+        assert errors == []
+
+    def test_cedula_with_hyphen_and_dv(self):
+        # Cedula con DV explicito: se descarta el DV, se busca el numero completo.
+        nit, errors = validate_nit("1010183001-1")
+        assert nit == "1010183001"
         assert errors == []
 
     def test_with_dots_and_hyphen(self):
@@ -46,8 +62,9 @@ class TestValidateNitFormats:
         assert errors == []
 
     def test_known_nit_no_hyphen_with_dv(self):
+        # 10-digit no-hyphen se retorna completo; el fallback de RUES quita el DV.
         nit, errors = validate_nit("8600029648")
-        assert nit == "860002964"
+        assert nit == "8600029648"
         assert errors == []
 
     def test_known_nit_no_dv(self):

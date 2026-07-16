@@ -523,24 +523,32 @@ class CoRuesService(BaseLookupService):
     async def _do_lookup(
         self, page: Page, tax_id: str, timeout: int, errors: list[str]
     ) -> LookupResponse:
-        # Step 1: Search results page
-        url = RUES_SEARCH_URL.format(nit=tax_id)
-        logger.info("[NIT=%s] Step 1: Navegando a %s", tax_id, url)
-        await page.goto(url, wait_until="networkidle", timeout=timeout)
+        # Step 1: Search results page.
+        # A 10-digit no-hyphen value is ambiguous: it can be a 10-digit cédula
+        # (persona natural) or a 9-digit NIT base + verification digit. Search the
+        # full number first; only if RUES returns nothing, retry with the first 9
+        # digits (the NIT-with-DV case). Cédulas are found on the first try.
+        search_id = tax_id
+        card_count = await self._search_cards(page, search_id, timeout)
 
-        try:
-            await page.wait_for_selector("div.card-result", timeout=timeout)
-        except PlaywrightTimeout:
-            logger.warning("[NIT=%s] Timeout esperando resultados de RUES (%dms)", tax_id, timeout)
+        if card_count == 0 and len(tax_id) == 10 and tax_id.isdigit():
+            fallback_id = tax_id[:9]
+            logger.info(
+                "[NIT=%s] Sin resultados con id completo; fallback a base %s",
+                tax_id, fallback_id,
+            )
+            fb_count = await self._search_cards(page, fallback_id, timeout)
+            if fb_count > 0:
+                search_id, card_count = fallback_id, fb_count
+
+        if card_count == 0:
+            logger.warning("[NIT=%s] Timeout/sin resultados de RUES (%dms)", tax_id, timeout)
             errors.append(f"Timeout esperando resultados de RUES ({timeout}ms)")
             return self._empty_response(tax_id, errors)
 
         cards = page.locator("div.card-result")
-        card_count = await cards.count()
-        logger.info("[NIT=%s] Encontrados %d resultados", tax_id, card_count)
-
-        if card_count == 0:
-            return self._empty_response(tax_id, errors)
+        logger.info("[NIT=%s] Encontrados %d resultados (id buscado=%s)",
+                    tax_id, card_count, search_id)
 
         # Extract legal_name from the search result card
         first_card = cards.first
@@ -567,9 +575,17 @@ class CoRuesService(BaseLookupService):
         logger.info("[NIT=%s] Step 3: Parseando Información general", tax_id)
         registration = await self._parse_info_general(page, legal_name, tax_id)
 
-        # Step 4: Click "Representante legal" tab and parse
-        logger.info("[NIT=%s] Step 4: Parseando Representante legal", tax_id)
-        legal_rep, legal_rep_raw = await self._parse_representante_legal(page, tax_id, errors)
+        # Step 4: Resolve the legal representative.
+        #   - Empresa (NIT): the representative lives in the "Representante legal" tab.
+        #   - Persona natural (cédula): that tab shows "Información no disponible", so
+        #     the representative IS the person — take it from "Información general".
+        if self._is_persona_natural(registration):
+            logger.info("[NIT=%s] Step 4: Persona natural — representante = titular", tax_id)
+            legal_rep = self._legal_rep_from_titular(registration, legal_name, search_id)
+            legal_rep_raw = None
+        else:
+            logger.info("[NIT=%s] Step 4: Empresa — parseando Representante legal", tax_id)
+            legal_rep, legal_rep_raw = await self._parse_representante_legal(page, tax_id, errors)
 
         return LookupResponse(
             tax_id_input=tax_id,
@@ -659,6 +675,70 @@ class CoRuesService(BaseLookupService):
             errors.append("No se pudo extraer información del Gerente")
 
         return rep, text
+
+    async def _search_cards(self, page: Page, query: str, timeout: int) -> int:
+        """Navigate to the RUES search page for `query` and return the number of
+        result cards. Returns 0 if no cards appear before the timeout."""
+        url = RUES_SEARCH_URL.format(nit=query)
+        logger.info("[NIT=%s] Step 1: Navegando a %s", query, url)
+        await page.goto(url, wait_until="networkidle", timeout=timeout)
+        try:
+            await page.wait_for_selector("div.card-result", timeout=timeout)
+        except PlaywrightTimeout:
+            logger.warning("[NIT=%s] Timeout esperando resultados de RUES (%dms)", query, timeout)
+            return 0
+        return await page.locator("div.card-result").count()
+
+    @staticmethod
+    def _is_persona_natural(registration: BusinessRegistration) -> bool:
+        """A persona natural is identified in RUES by a 'CEDULA ...' Identificación
+        (de ciudadanía or de extranjería); a company shows a 'NIT ...'."""
+        ident = (registration.tax_id or "").upper()
+        if "CEDULA" in ident or "CÉDULA" in ident:
+            return True
+        if "NIT" in ident:
+            return False
+        # Fallback when the Identificación string is atypical/missing.
+        category = (registration.category or "").upper()
+        org = (registration.organization_type or "").upper()
+        return "PERSONA NATURAL" in category or "PERSONA NATURAL" in org
+
+    def _legal_rep_from_titular(
+        self,
+        registration: BusinessRegistration,
+        legal_name: Optional[str],
+        search_id: str,
+    ) -> LegalRepresentative:
+        """Build the legal representative for a persona natural from the person's
+        own identity in 'Información general' (the merchant IS the representative)."""
+        ident = registration.tax_id or ""
+        id_type = "C.E." if "EXTRANJER" in ident.upper() else "C.C."
+        id_number = self._extract_id_number(ident) or search_id
+        name = legal_name or registration.legal_name
+        logger.info(
+            "[NIT=%s] Representante (persona natural): %s | %s %s",
+            search_id, name, id_type, id_number,
+        )
+        return LegalRepresentative(
+            role="Representante Legal",
+            name=name,
+            id_type=id_type,
+            id_number=id_number,
+        )
+
+    @staticmethod
+    def _extract_id_number(identificacion: str) -> Optional[str]:
+        """Pull the document number from an Identificación string like
+        'CEDULA DE CIUDADANIA 1010183001 - 1' → '1010183001' (drops the DV)."""
+        # number + dash + single-digit verification digit at the end
+        m = re.search(r"(\d[\d.]*\d|\d)\s*[-–—]\s*\d\s*$", identificacion)
+        if m:
+            return m.group(1).replace(".", "")
+        # no DV separator — take the longest digit run
+        runs = re.findall(r"\d[\d.]*\d|\d", identificacion)
+        if runs:
+            return max((r.replace(".", "") for r in runs), key=len)
+        return None
 
     def _empty_response(self, tax_id: str, errors: list[str]) -> LookupResponse:
         logger.info("[NIT=%s] Retornando respuesta vacía | errors=%s", tax_id, errors)
