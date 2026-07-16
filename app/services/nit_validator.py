@@ -41,11 +41,16 @@ def _parse_nit(raw: str) -> tuple[str, str | None, list[str]]:
     if not stripped.isdigit():
         return stripped, None, ["NIT contiene caracteres no numericos"]
 
-    # 10 digits → first 9 are base, last is DV
-    if len(stripped) == 10:
-        return stripped[:9], stripped[9], []
-
-    # 6-9 digits → base without DV
+    # Return the number as-is, WITHOUT stripping any digit.
+    #
+    # A 10-digit no-hyphen value is ambiguous:
+    #   - a 10-digit cedula (persona natural)   → must search the FULL number
+    #   - a 9-digit NIT base + verification digit → must search the first 9
+    # We do NOT decide here. co_rues_service searches the full number first and
+    # falls back to the first 9 digits if RUES returns no results.
+    #
+    # (Historic bug: this branch used to return stripped[:9] for len==10, which
+    #  mangled cedulas like 1010183001 -> 101018300 and made RUES time out.)
     return stripped, None, []
 
 
@@ -67,11 +72,14 @@ def validate_nit(raw: str) -> tuple[str, list[str]]:
 
     errors: list[str] = []
 
-    # NIT base is typically 9 digits; some old NITs are shorter (6-9)
-    if len(base) < 6 or len(base) > 9:
-        return base, [f"NIT tiene longitud invalida: {len(base)} digitos (esperado 6-9)"]
+    # Accept 6-10 digits: NIT base is typically 9 (older ones 6-8), but a
+    # 10-digit cedula (persona natural) is also a valid RUES search key.
+    if len(base) < 6 or len(base) > 10:
+        return base, [f"NIT tiene longitud invalida: {len(base)} digitos (esperado 6-10)"]
 
-    # DV is stripped — RUES does not accept it, so we just discard it
+    # When a DV was given explicitly (hyphen form), it is already discarded —
+    # `base` is the search key. For no-hyphen 10-digit values the full number is
+    # returned and co_rues_service handles the cedula/NIT+DV fallback.
     return base, errors
 
 
