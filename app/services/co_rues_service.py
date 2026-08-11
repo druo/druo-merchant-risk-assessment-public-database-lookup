@@ -529,21 +529,33 @@ class CoRuesService(BaseLookupService):
         # full number first; only if RUES returns nothing, retry with the first 9
         # digits (the NIT-with-DV case). Cédulas are found on the first try.
         search_id = tax_id
-        card_count = await self._search_cards(page, search_id, timeout)
+        card_count, reachable = await self._search_cards(page, search_id, timeout)
 
-        if card_count == 0 and len(tax_id) == 10 and tax_id.isdigit():
+        # Only retry with the NIT base when RUES actually answered. If it never
+        # answered, a second search just doubles the outage.
+        if reachable and card_count == 0 and len(tax_id) == 10 and tax_id.isdigit():
             fallback_id = tax_id[:9]
             logger.info(
                 "[NIT=%s] Sin resultados con id completo; fallback a base %s",
                 tax_id, fallback_id,
             )
-            fb_count = await self._search_cards(page, fallback_id, timeout)
+            fb_count, fb_reachable = await self._search_cards(page, fallback_id, timeout)
             if fb_count > 0:
                 search_id, card_count = fallback_id, fb_count
+            elif not fb_reachable:
+                # The full id answered "nothing", but we could not check the base
+                # variant. Report degraded rather than "not registered".
+                reachable = False
 
         if card_count == 0:
-            logger.warning("[NIT=%s] Timeout/sin resultados de RUES (%dms)", tax_id, timeout)
-            errors.append(f"Timeout esperando resultados de RUES ({timeout}ms)")
+            if reachable:
+                # RUES answered and has nothing for this identifier. That is a real
+                # finding, not a failure: leave `errors` empty so callers can tell
+                # "not registered" apart from "could not verify".
+                logger.info("[NIT=%s] RUES sin resultados para el identificador", tax_id)
+            else:
+                logger.warning("[NIT=%s] RUES no respondio (%dms)", tax_id, timeout)
+                errors.append(f"RUES no respondio ({timeout}ms)")
             return self._empty_response(tax_id, errors)
 
         cards = page.locator("div.card-result")
@@ -676,18 +688,33 @@ class CoRuesService(BaseLookupService):
 
         return rep, text
 
-    async def _search_cards(self, page: Page, query: str, timeout: int) -> int:
-        """Navigate to the RUES search page for `query` and return the number of
-        result cards. Returns 0 if no cards appear before the timeout."""
+    async def _search_cards(self, page: Page, query: str, timeout: int) -> tuple[int, bool]:
+        """Navigate to the RUES search page for `query`.
+
+        Returns `(card_count, reachable)`. `reachable` is False only when RUES never
+        answered — the navigation itself timed out. A page that loads fine and simply
+        has no matches returns `(0, True)`: that is an answer, not a failure, and the
+        caller must not report it as a timeout. Collapsing the two is what made every
+        unregistered identifier look like an outage.
+        """
         url = RUES_SEARCH_URL.format(nit=query)
         logger.info("[NIT=%s] Step 1: Navegando a %s", query, url)
-        await page.goto(url, wait_until="networkidle", timeout=timeout)
         try:
-            await page.wait_for_selector("div.card-result", timeout=timeout)
+            await page.goto(url, wait_until="networkidle", timeout=timeout)
         except PlaywrightTimeout:
-            logger.warning("[NIT=%s] Timeout esperando resultados de RUES (%dms)", query, timeout)
-            return 0
-        return await page.locator("div.card-result").count()
+            logger.warning("[NIT=%s] RUES no respondio la navegacion (%dms)", query, timeout)
+            return 0, False
+
+        # goto() already waited for networkidle, so the results are rendered by now.
+        # Give the cards a short grace period rather than the full scraping timeout.
+        grace = min(settings.empty_result_grace, timeout)
+        try:
+            await page.wait_for_selector("div.card-result", timeout=grace)
+        except PlaywrightTimeout:
+            logger.info("[NIT=%s] RUES respondio sin resultados (grace %dms)", query, grace)
+            return 0, True
+
+        return await page.locator("div.card-result").count(), True
 
     @staticmethod
     def _is_persona_natural(registration: BusinessRegistration) -> bool:

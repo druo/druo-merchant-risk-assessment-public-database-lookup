@@ -53,7 +53,8 @@ CONTRIBUTING.md            # Guia de contribucion, gitflow, conventional commits
 | `LOG_LEVEL` | `info` | No | Nivel de logging |
 | `RATE_LIMIT` | `10/minute` | No | Limite de requests por IP |
 | `BROWSER_HEADLESS` | `true` | No | Modo headless de Chromium |
-| `SCRAPING_TIMEOUT` | `30000` | No | Timeout de scraping en milisegundos |
+| `SCRAPING_TIMEOUT` | `45000` | No | Timeout de scraping en milisegundos |
+| `EMPTY_RESULT_GRACE` | `8000` | No | Espera por tarjetas de resultado despues de que la pagina ya cargo. Agotarla significa "el registro no tiene el identificador", no timeout |
 
 ## Paises soportados
 
