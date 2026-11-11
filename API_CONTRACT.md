@@ -174,6 +174,9 @@ El campo `legal_representative_raw` contiene el texto crudo para analisis extern
 
 ### No encontrado (CO)
 
+RUES respondio y no tiene el identificador. `errors` viene **vacio**: es un hallazgo
+real del registro, no una falla de la consulta.
+
 ```json
 {
   "tax_id_input": "123456789",
@@ -183,15 +186,37 @@ El campo `legal_representative_raw` contiene el texto crudo para analisis extern
   "legal_representative": null,
   "legal_representative_raw": null,
   "raw_entries": null,
-  "errors": ["Timeout esperando resultados de RUES (45000ms)"]
+  "errors": []
 }
 ```
+
+### No se pudo consultar (CO)
+
+RUES no respondio. `found` tambien es `false`, pero `errors` trae el motivo.
+
+```json
+{
+  "tax_id_input": "123456789",
+  "country": "CO",
+  "found": false,
+  "registration": null,
+  "legal_representative": null,
+  "legal_representative_raw": null,
+  "raw_entries": null,
+  "errors": ["RUES no respondio (45000ms)"]
+}
+```
+
+> **Importante para el consumidor:** `found: false` por si solo NO significa que el
+> negocio no exista. Hay que mirar `errors`: vacio = el registro contesto y no lo
+> tiene; con contenido = no se pudo verificar. Puntuar los dos casos igual castiga a
+> un merchant legitimo cada vez que la fuente falla.
 
 ### Errores posibles (CO)
 
 | Error | Causa |
 |-------|-------|
-| `Timeout esperando resultados de RUES (45000ms)` | RUES no respondio a tiempo |
+| `RUES no respondio (45000ms)` | La pagina de busqueda no cargo |
 | `Timeout al consultar RUES` | Error general de timeout |
 | `No se encontro enlace 'Ver informacion'` | Tarjeta sin enlace de detalle |
 | `No se encontro pestana de Representante legal` | Empresa sin esa pestana en RUES |

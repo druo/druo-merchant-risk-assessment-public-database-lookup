@@ -1,14 +1,16 @@
 """Batch test: Colombian companies — legal representative extraction.
 NITs verified from veritradecorp.com, registronit.com and other public sources.
-Run: python3 tests/test_co_companies.py
+Run: API_KEY=<the key the local server was started with> python3 tests/test_co_companies.py
 """
 
 import json
+import os
 import subprocess
+import sys
 import time
 
 API_URL = "http://localhost:8000/v1/lookup"
-API_KEY = "cqjuueuCys_L93bK6MbCqBUWwXVfRHK7O2oxpJ5ntaw"
+API_KEY = os.environ.get("API_KEY", "")
 
 # NITs confirmados de fuentes publicas (veritrade, registronit, informacolombia)
 COMPANIES = [
@@ -102,6 +104,8 @@ def test_one(nit: str) -> dict:
 
 
 def main():
+    if not API_KEY:
+        sys.exit("Set API_KEY to the key the local server was started with.")
     total = len(COMPANIES)
     found = 0
     with_rep = 0

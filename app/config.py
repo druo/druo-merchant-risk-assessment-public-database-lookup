@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # Scraping timeout in milliseconds
     scraping_timeout: int = 45000
 
+    # Grace period, in milliseconds, to wait for result cards AFTER the search page
+    # already finished loading. The navigation waits for networkidle, so by then the
+    # results are rendered; anything longer just delays the "no matches" answer.
+    empty_result_grace: int = 8000
+
     model_config = {"env_prefix": "", "case_sensitive": False}
 
 
