@@ -1,12 +1,14 @@
 # Merchant Precheck Public Database Lookup
 
-Microservicio REST que consulta bases de datos publicas oficiales de empresas dado un identificador tributario (NIT para Colombia) y retorna un JSON estructurado con la informacion de la empresa.
+Microservicio REST que consulta bases de datos publicas oficiales de empresas dado un identificador tributario (NIT para Colombia, RUC para Peru, RUT para Chile) y retorna un JSON estructurado con la informacion de la empresa. El contrato completo por pais esta en `API_CONTRACT.md`.
 
 ## Paises soportados
 
 | Pais | Identificador | Fuente oficial |
 |------|---------------|----------------|
-| Colombia | NIT | RUES (Registro Unico Empresarial y Social) |
+| Colombia | NIT o cedula | RUES (Registro Unico Empresarial y Social) |
+| Peru | RUC | SUNAT (Consulta RUC) |
+| Chile | RUT | SII (Consultar Situacion Tributaria de Terceros) |
 
 ## Inicio rapido
 

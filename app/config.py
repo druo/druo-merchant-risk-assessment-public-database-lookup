@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # results are rendered; anything longer just delays the "no matches" answer.
     empty_result_grace: int = 8000
 
+    # How long, in milliseconds, to wait in the SII's Queue-it waiting room (the bar
+    # with the walking person) for the form to show up. Only used for Chile.
+    sii_queue_timeout: int = 120000
+
     model_config = {"env_prefix": "", "case_sensitive": False}
 
 
