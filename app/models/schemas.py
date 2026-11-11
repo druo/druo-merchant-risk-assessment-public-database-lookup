@@ -8,7 +8,7 @@ from app.models.enums import Country, RegistrationStatus
 
 
 class LookupRequest(BaseModel):
-    tax_id: str = Field(..., description="Identificador tributario (NIT para CO, RUC para PE)")
+    tax_id: str = Field(..., description="Identificador tributario (NIT para CO, RUC para PE, RUT para CL)")
     country: Country = Field(..., description="Codigo de pais ISO 3166-1 alpha-2")
 
 
@@ -37,6 +37,12 @@ class BusinessRegistration(BaseModel):
     fiscal_address: Optional[str] = None
     economic_activities: Optional[list[str]] = None
     foreign_trade_activity: Optional[str] = None
+    # Chile (SII) — also fills activity_start_date and economic_activities
+    termination_date: Optional[str] = None
+    termination_reason: Optional[str] = None
+    small_company: Optional[str] = None
+    foreign_currency_taxpayer: Optional[str] = None
+    tax_alerts: Optional[list[str]] = None
 
 
 class LegalRepresentative(BaseModel):

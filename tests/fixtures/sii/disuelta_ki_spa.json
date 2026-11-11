@@ -1,0 +1,225 @@
+{
+  "alertaTablas": [
+    {
+      "titulo": "AVISO",
+      "nombreTabla": "tablaAlerta1",
+      "alertas": [
+        {
+          "clasificacion": 2,
+          "grupo": "021",
+          "grave": "N",
+          "indFecha": "S",
+          "fechaActivacion": "08-02-2024",
+          "nombreTabla": "tablaAlerta1",
+          "muestraTitulo": true,
+          "titulo": "AVISO",
+          "motivo": "Contribuyente persona jurídica con certificado de Término de Giro. Por tanto no posee documentos tributarios autorizados por el SII.<br><br>De efectuar transacciones con este contribuyente, se sugiere, como medio de resguardo, efectuar el pago del bien y/o servicio contratado con cheque nominativo, vale vista nominativo o transferencia electrónica de dinero a nombre del emisor de la factura, girado contra la cuenta corriente bancaria del comprador o beneficiario del servicio, <b>anotando al reverso el RUT del emisor y el número de la factura</b>. En el caso de transferencias electrónicas de dinero, esta misma información, incluyendo el monto de la operación, se debe registrar en los respaldos de la transacción electrónica del banco.<br><br>La situación se presenta a contar del  08-02-2024",
+          "texto": "Término de giro persona jurídica",
+          "datoGrupoIndex": 10
+        }
+      ]
+    },
+    {
+      "titulo": "Observación:",
+      "nombreTabla": "tablaObsv",
+      "alertas": [
+        {
+          "clasificacion": 9,
+          "grupo": "024",
+          "grave": "N",
+          "indFecha": "N",
+          "fechaActivacion": "N",
+          "nombreTabla": null,
+          "muestraTitulo": false,
+          "titulo": null,
+          "motivo": "El RUT consultado no figura con iniciación de actividades ante el SII. Por tanto, no posee documentos tributarios autorizados por este Servicio.<br><br>De efectuar transacciones con este contribuyente, se sugiere, como medio de resguardo, efectuar el pago del bien y/o servicio contratado con cheque nominativo, vale vista nominativo o transferencia electrónica de dinero a nombre del emisor de la factura, girado contra la cuenta corriente bancaria del comprador o beneficiario del servicio, <b>anotando al reverso el RUT del emisor y el número de la factura</b>. En el caso de transferencias electrónicas de dinero, esta misma información, incluyendo el monto de la operación, se debe registrar en los respaldos de la transacción electrónica del banco.",
+          "texto": "Rut consultado sin iniciación de actividades",
+          "datoGrupoIndex": 0
+        }
+      ]
+    }
+  ],
+  "atrbRferDTOS": [],
+  "atributosPOFE": [],
+  "captchaInvalido": false,
+  "conTegi": true,
+  "cumpleObligacionTributaria": "SI",
+  "fecha8102": "08-02-2024",
+  "fechaCULT": null,
+  "fechaConsulta": "11-11-2026 17:26:01",
+  "fechaInicioActividades": null,
+  "fechaRSUB": "",
+  "fechaSPDE": null,
+  "fechaSPRO": null,
+  "folios": [],
+  "girosNegocio": [],
+  "inicioActividades": false,
+  "modeloEmisionBoletas": [],
+  "mostrarFolios": false,
+  "mostrarObligacionTributaria": true,
+  "nocondonable": " ",
+  "nombre": "KI SPA",
+  "observacion1": "<b>Si el contribuyente correspondiente al RUT consultado, no está de acuerdo o desconoce la situación informada en esta consulta, deberá concurrir a la unidad del SII correspondiente a su domicilio para aclarar o resolver su situación</b>.",
+  "observacion2": "<b><br>Esta consulta no constituye una certificación del comportamiento tributario del contribuyente. De esta manera, si para un RUT no aparecen observaciones, no significa que en una posterior auditoría no se detecten problemas.<br></b>",
+  "registrado": true,
+  "tiene8102": true,
+  "tieneAPME": false,
+  "tieneCULT": false,
+  "tieneEMTP": false,
+  "tieneGirosNegocio": false,
+  "tieneININ": false,
+  "tieneInicio": false,
+  "tieneModeloEmisionBoletas": false,
+  "tieneOFE": true,
+  "tienePOFE": false,
+  "tienePrimeraCategoria": false,
+  "tieneROFL": false,
+  "tieneRSUB": false,
+  "tieneSPDE": false,
+  "tieneSPRO": false,
+  "tieneTimbraje": true,
+  "timbrajeVirtual": false,
+  "timbrajes": [
+    {
+      "codigo": "0030",
+      "descripcion": "Facturas                                ",
+      "fechaTimbraje": "2005",
+      "folionicial": null,
+      "folioFinal": "      2950"
+    },
+    {
+      "codigo": "0032",
+      "descripcion": "Factura No Afecta O Exenta Iva          ",
+      "fechaTimbraje": "2005",
+      "folionicial": null,
+      "folioFinal": "      1200"
+    },
+    {
+      "codigo": "0033",
+      "descripcion": "Factura Electronica                     ",
+      "fechaTimbraje": "2023",
+      "folionicial": null,
+      "folioFinal": "      4249"
+    },
+    {
+      "codigo": "0034",
+      "descripcion": "Factura No Afecta O Exenta Electronica  ",
+      "fechaTimbraje": "2016",
+      "folionicial": null,
+      "folioFinal": "      8100"
+    },
+    {
+      "codigo": "0043",
+      "descripcion": "Liquidacion Factura Electronica         ",
+      "fechaTimbraje": "2016",
+      "folionicial": null,
+      "folioFinal": "      1400"
+    },
+    {
+      "codigo": "0046",
+      "descripcion": "Factura Compra Electronica              ",
+      "fechaTimbraje": "2016",
+      "folionicial": null,
+      "folioFinal": "      1400"
+    },
+    {
+      "codigo": "0052",
+      "descripcion": "Guia Despacho Electronica               ",
+      "fechaTimbraje": "2016",
+      "folionicial": null,
+      "folioFinal": "      1000"
+    },
+    {
+      "codigo": "0056",
+      "descripcion": "Nota Debito Electronica                 ",
+      "fechaTimbraje": "2016",
+      "folionicial": null,
+      "folioFinal": "        91"
+    },
+    {
+      "codigo": "0060",
+      "descripcion": "Notas De Credito                        ",
+      "fechaTimbraje": "2003",
+      "folionicial": null,
+      "folioFinal": "       150"
+    },
+    {
+      "codigo": "0061",
+      "descripcion": "Nota Credito Electronica                ",
+      "fechaTimbraje": "2021",
+      "folionicial": null,
+      "folioFinal": "       994"
+    },
+    {
+      "codigo": "0075",
+      "descripcion": "Contabilidad En Hojas Sueltas Con Nro.Un",
+      "fechaTimbraje": "2021",
+      "folionicial": null,
+      "folioFinal": "     14050"
+    },
+    {
+      "codigo": "0095",
+      "descripcion": "Boletas De Prestacion De Servicios De 3r",
+      "fechaTimbraje": "2004",
+      "folionicial": null,
+      "folioFinal": "       100"
+    },
+    {
+      "codigo": "0096",
+      "descripcion": "Boleta De Terceros Electronicas         ",
+      "fechaTimbraje": "2018",
+      "folionicial": null,
+      "folioFinal": "       766"
+    },
+    {
+      "codigo": "0101",
+      "descripcion": "Facturas De Exportacion                 ",
+      "fechaTimbraje": "2013",
+      "folionicial": null,
+      "folioFinal": "       200"
+    },
+    {
+      "codigo": "0106",
+      "descripcion": "Nota De Credito Exportacion             ",
+      "fechaTimbraje": "2011",
+      "folionicial": null,
+      "folioFinal": "        25"
+    },
+    {
+      "codigo": "0110",
+      "descripcion": "Factura De Exportacion Electronica      ",
+      "fechaTimbraje": "2016",
+      "folionicial": null,
+      "folioFinal": "      1000"
+    },
+    {
+      "codigo": "0111",
+      "descripcion": "Nota De Debito Exportacion Electronica  ",
+      "fechaTimbraje": "2016",
+      "folionicial": null,
+      "folioFinal": "      1000"
+    },
+    {
+      "codigo": "0112",
+      "descripcion": "Nota De Credito Exportacion Electronica ",
+      "fechaTimbraje": "2016",
+      "folionicial": null,
+      "folioFinal": "      1000"
+    },
+    {
+      "codigo": "0150",
+      "descripcion": "Otros Libros Empastados                 ",
+      "fechaTimbraje": "2002",
+      "folionicial": null,
+      "folioFinal": "        52"
+    },
+    {
+      "codigo": "0151",
+      "descripcion": "Libro Control De Timbraje               ",
+      "fechaTimbraje": "1997",
+      "folionicial": null,
+      "folioFinal": "        50"
+    }
+  ],
+  "urlVdc": "https://www2.sii.cl/vdc"
+}

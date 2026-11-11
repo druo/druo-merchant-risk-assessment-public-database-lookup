@@ -13,14 +13,14 @@ Content-Type: application/json
 ```json
 {
   "tax_id": "string",
-  "country": "CO | PE"
+  "country": "CO | PE | CL"
 }
 ```
 
 | Campo | Tipo | Requerido | Descripcion |
 |-------|------|-----------|-------------|
-| `tax_id` | string | Si | Identificador tributario (NIT para CO, RUC para PE) |
-| `country` | string | Si | Codigo ISO 3166-1 alpha-2: `CO` o `PE` |
+| `tax_id` | string | Si | Identificador tributario (NIT para CO, RUC para PE, RUT para CL) |
+| `country` | string | Si | Codigo ISO 3166-1 alpha-2: `CO`, `PE` o `CL` |
 
 ---
 
@@ -29,7 +29,7 @@ Content-Type: application/json
 ```json
 {
   "tax_id_input": "string",
-  "country": "CO | PE",
+  "country": "CO | PE | CL",
   "found": true | false,
   "registration": { ... } | null,
   "legal_representative": { ... } | null,
@@ -47,7 +47,7 @@ Content-Type: application/json
 | `registration` | object/null | Datos de registro de la empresa |
 | `legal_representative` | object/null | Representante legal extraido |
 | `legal_representative_raw` | string/null | Texto crudo de la seccion de representante legal |
-| `raw_entries` | array/null | Datos crudos adicionales (multiples resultados CO) |
+| `raw_entries` | array/null | Datos crudos adicionales (multiples resultados CO; JSON completo del SII en CL) |
 | `errors` | array | Lista de errores (vacio si todo OK) |
 
 ---
@@ -335,17 +335,157 @@ RUES no respondio. `found` tambien es `false`, pero `errors` trae el motivo.
 
 ---
 
-## Diferencias clave entre CO y PE
+## Response — Chile (CL)
 
-| Aspecto | Colombia (CO) | Peru (PE) |
-|---------|---------------|-----------|
-| Fuente | RUES (rues.org.co) | SUNAT (sunat.gob.pe) |
-| Identificador | NIT (6-9 digitos) | RUC (11 digitos) |
-| Campos de registro | Matricula, Camara Comercio, etc. | Tipo contribuyente, Condicion, Domicilio, etc. |
-| Rep. legal — fuente | Texto libre (multiples formatos) | Tabla estructurada |
-| Rep. legal — `since_date` | No disponible (null) | Disponible |
-| Rep. legal — roles | Gerente, Presidente, Rep. Legal | GERENTE GENERAL, GERENTE, APODERADO |
-| Campos null | Campos PE son null | Campos CO son null |
+Fuente: "Consultar Situacion Tributaria de Terceros" del SII (`https://www2.sii.cl/stc/noauthz`).
+El servicio llena el formulario con Playwright y lee el JSON que la pagina recibe del SII
+(`POST /app/stc/recurso/v1/consulta/getConsultaData/`). Con mucho trafico el SII manda
+primero a una sala de espera de Queue-it (`salaespera.sii.cl`); el servicio espera ahi
+hasta `SII_QUEUE_TIMEOUT` (120 s por defecto).
+
+El RUT se acepta con o sin puntos y con o sin guion (`78.490.274-9`, `78490274-9`,
+`784902749`). Un digito verificador que no cuadra responde `422` sin consultar al SII.
+
+### Registro activo
+
+```json
+{
+  "tax_id_input": "78490274-9",
+  "country": "CL",
+  "found": true,
+  "registration": {
+    "legal_name": "DRUO CHILE SPA.",
+    "tax_id": "78490274-9",
+    "status": "ACTIVA",
+    "activity_start_date": "17-08-2026",
+    "economic_activities": [
+      "649900 - OTRAS ACTIVIDADES DE SERVICIOS FINANCIEROS, EXCEPTO LAS DE SEGUROS Y FONDOS DE PENSIONES N.C.P.",
+      "661909 - OTRAS ACTIVIDADES AUXILIARES DE LAS ACTIVIDADES DE SERVICIOS FINANCIEROS N.C.P."
+    ],
+    "termination_date": null,
+    "termination_reason": null,
+    "small_company": "SI",
+    "foreign_currency_taxpayer": "NO",
+    "tax_alerts": null
+  },
+  "legal_representative": null,
+  "legal_representative_raw": null,
+  "raw_entries": [{ "...": "JSON completo del SII" }],
+  "errors": []
+}
+```
+
+### Sociedad disuelta
+
+Una sociedad disuelta o con termino de giro conserva su nombre en el SII: existe, pero no
+esta activa.
+
+```json
+{
+  "tax_id_input": "78827280-4",
+  "country": "CL",
+  "found": true,
+  "registration": {
+    "legal_name": "KI SPA",
+    "tax_id": "78827280-4",
+    "status": "CANCELADA",
+    "activity_start_date": null,
+    "economic_activities": null,
+    "termination_date": "08-02-2024",
+    "termination_reason": "Sociedad disuelta por absorción",
+    "small_company": "NO",
+    "foreign_currency_taxpayer": "NO",
+    "tax_alerts": [
+      "Término de giro persona jurídica (desde 08-02-2024)",
+      "Rut consultado sin iniciación de actividades"
+    ]
+  },
+  "legal_representative": null,
+  "legal_representative_raw": null,
+  "raw_entries": [{ "...": "JSON completo del SII" }],
+  "errors": []
+}
+```
+
+### Campos de `registration` para Chile
+
+Los campos de CO y PE que no aparecen aqui vienen `null`.
+
+| Campo | Tipo | Fuente | Ejemplo |
+|-------|------|--------|---------|
+| `legal_name` | string | Nombre o Razon Social | "DRUO CHILE SPA." |
+| `tax_id` | string | RUT con digito verificador, sin puntos | "78490274-9" |
+| `status` | enum | Ver regla abajo | "ACTIVA", "INACTIVA", "CANCELADA" |
+| `activity_start_date` | string | Fecha de Inicio de Actividades (`dd-mm-yyyy`) | "17-08-2026" |
+| `economic_activities` | array | Actividades economicas vigentes, `codigo - descripcion` | ["649900 - OTRAS ACTIVIDADES..."] |
+| `termination_date` | string | Fecha de disolucion o de termino de giro (`dd-mm-yyyy`) | "08-02-2024" |
+| `termination_reason` | string | Motivo segun el SII | "Sociedad disuelta por absorción", "Término de giro persona jurídica" |
+| `small_company` | string | Empresa de Menor Tamaño (Ley N°20.416) | "SI", "NO" |
+| `foreign_currency_taxpayer` | string | Autorizado a declarar y pagar impuestos en moneda extranjera | "SI", "NO" |
+| `tax_alerts` | array | Avisos y observaciones del SII, con su fecha si la tienen. Sin la "Recomendacion General", que sale para todo RUT | ["Término de giro persona jurídica (desde 08-02-2024)"] |
+
+### Regla de `found` y `status` (CL)
+
+El SII nunca responde "el RUT no existe": un RUT desconocido vuelve con nombre `**` y la
+observacion "Rut consultado sin iniciacion de actividades".
+
+- `found: true` solo si el SII muestra un nombre para el RUT.
+- `status`:
+  - `CANCELADA`: sociedad disuelta (`tiene8102`) o con termino de giro (`conTegi`, avisos 020/021).
+  - `ACTIVA`: presenta inicio de actividades y no tiene termino de giro.
+  - `INACTIVA`: tiene nombre, pero no tiene inicio de actividades ni termino de giro.
+- El SII no publica representante legal: `legal_representative` y `legal_representative_raw`
+  vienen siempre `null`, sin error.
+
+### No encontrado (CL)
+
+El SII respondio y no muestra nombre para el RUT. `errors` viene **vacio**, igual que en CO.
+`raw_entries` trae lo que el SII dijo (por ejemplo, un aviso de termino de giro de una
+persona natural cuyo nombre el SII no muestra).
+
+```json
+{
+  "tax_id_input": "99999990-5",
+  "country": "CL",
+  "found": false,
+  "registration": null,
+  "legal_representative": null,
+  "legal_representative_raw": null,
+  "raw_entries": [{ "...": "JSON completo del SII" }],
+  "errors": []
+}
+```
+
+### Errores posibles (CL)
+
+Con cualquiera de estos errores, `found` es `false` y `raw_entries` es `null`: no se pudo
+verificar.
+
+| Error | Causa |
+|-------|-------|
+| `SII no respondio (45000ms)` | La pagina del SII no cargo |
+| `Fila de espera del SII no avanzo (120000ms)` | Seguia en la sala de espera de Queue-it al agotar `SII_QUEUE_TIMEOUT` |
+| `SII no mostro el formulario (120000ms)` | La pagina cargo pero el formulario nunca aparecio |
+| `SII no respondio la consulta (45000ms)` | Se envio el RUT y el SII no contesto |
+| `SII respondio HTTP <status>` | La consulta devolvio un status distinto de 200 |
+| `SII rechazo el captcha` | El SII activo el reCAPTCHA y rechazo el token |
+| `Timeout al consultar SII` | Error general de timeout |
+| `Error inesperado al consultar SII` | Error no controlado |
+
+---
+
+## Diferencias clave entre CO, PE y CL
+
+| Aspecto | Colombia (CO) | Peru (PE) | Chile (CL) |
+|---------|---------------|-----------|------------|
+| Fuente | RUES (rues.org.co) | SUNAT (sunat.gob.pe) | SII (sii.cl) |
+| Identificador | NIT (6-9 digitos) | RUC (11 digitos) | RUT (6-8 digitos + DV 0-9/K) |
+| Campos de registro | Matricula, Camara Comercio, etc. | Tipo contribuyente, Condicion, Domicilio, etc. | Inicio de actividades, actividades economicas, termino de giro, avisos |
+| Rep. legal — fuente | Texto libre (multiples formatos) | Tabla estructurada | No disponible |
+| Rep. legal — `since_date` | No disponible (null) | Disponible | No disponible |
+| Rep. legal — roles | Gerente, Presidente, Rep. Legal | GERENTE GENERAL, GERENTE, APODERADO | — |
+| No encontrado | `errors` vacio | `errors` con mensaje | `errors` vacio |
+| Campos null | Campos PE y CL son null | Campos CO y CL son null | Campos CO y PE son null, salvo `activity_start_date` y `economic_activities` |
 
 ---
 
@@ -372,7 +512,7 @@ Authorization: Bearer <API_KEY>
 |--------|-------|
 | 401 | API key invalida |
 | 403 | Sin header Authorization |
-| 422 | NIT/RUC invalido o pais no soportado |
+| 422 | NIT/RUC/RUT invalido o pais no soportado |
 | 429 | Rate limit excedido (10/min por IP) |
 
 ## Rate Limiting
