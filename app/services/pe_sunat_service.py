@@ -32,6 +32,10 @@ logger = logging.getLogger(__name__)
 
 SUNAT_URL = "https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp"
 
+# Cloudflare answers with its bot check instead of SUNAT's page and marks that
+# response with `cf-mitigated: challenge`. The page text is localized, the header is not.
+CLOUDFLARE_BLOCKED_ERROR = "SUNAT bloqueo la consulta (verificacion anti-bot de Cloudflare)"
+
 
 def _parse_status_pe(raw: str) -> RegistrationStatus:
     normalized = raw.strip().upper()
@@ -81,9 +85,24 @@ class PeSunatService(BaseLookupService):
     async def _do_lookup(
         self, page: Page, tax_id: str, timeout: int, errors: list[str]
     ) -> LookupResponse:
+        # A Cloudflare bot check never settles, so it surfaces as a timeout unless flagged.
+        challenged = False
+
+        def _flag_challenge(response) -> None:
+            nonlocal challenged
+            if response.headers.get("cf-mitigated") == "challenge":
+                challenged = True
+
+        page.on("response", _flag_challenge)
+
         # Step 1: Navigate to search page
         logger.info("[RUC=%s] Step 1: Navegando a SUNAT Consulta RUC", tax_id)
-        await page.goto(SUNAT_URL, wait_until="networkidle", timeout=timeout)
+        try:
+            await page.goto(SUNAT_URL, wait_until="networkidle", timeout=timeout)
+        except PlaywrightTimeout:
+            if challenged:
+                return self._blocked_response(tax_id, errors)
+            raise
 
         # Step 2: Fill RUC and search
         logger.info("[RUC=%s] Step 2: Ingresando RUC y buscando", tax_id)
@@ -96,6 +115,8 @@ class PeSunatService(BaseLookupService):
             await page.wait_for_load_state("networkidle", timeout=timeout)
             await page.wait_for_timeout(2000)
         except PlaywrightTimeout:
+            if challenged:
+                return self._blocked_response(tax_id, errors)
             logger.warning("[RUC=%s] Timeout esperando resultados de SUNAT (%dms)", tax_id, timeout)
             errors.append(f"Timeout esperando resultados de SUNAT ({timeout}ms)")
             return self._empty_response(tax_id, errors)
@@ -104,6 +125,11 @@ class PeSunatService(BaseLookupService):
 
         # Check if results exist
         page_text = await page.locator("body").inner_text()
+        ruc_pattern = f"{tax_id} - "
+
+        # The check can also settle on its own page; that is a block, not "RUC not found"
+        if challenged and ruc_pattern not in page_text:
+            return self._blocked_response(tax_id, errors)
 
         # SUNAT shows "no es válido" or "no existe" for invalid/unknown RUCs
         if "no es válido" in page_text or "no existe" in page_text:
@@ -112,7 +138,6 @@ class PeSunatService(BaseLookupService):
             return self._empty_response(tax_id, errors)
 
         # Must have the RUC with " - " pattern (e.g. "20100055237 - ALICORP SAA")
-        ruc_pattern = f"{tax_id} - "
         if ruc_pattern not in page_text:
             logger.warning("[RUC=%s] RUC no encontrado en resultados", tax_id)
             return self._empty_response(tax_id, errors)
@@ -323,6 +348,11 @@ class PeSunatService(BaseLookupService):
             id_number=chosen["doc_number"],
             since_date=chosen["since"],
         ), raw_text
+
+    def _blocked_response(self, tax_id: str, errors: list[str]) -> LookupResponse:
+        logger.warning("[RUC=%s] Cloudflare bloqueo la consulta (cf-mitigated: challenge)", tax_id)
+        errors.append(CLOUDFLARE_BLOCKED_ERROR)
+        return self._empty_response(tax_id, errors)
 
     def _empty_response(self, tax_id: str, errors: list[str]) -> LookupResponse:
         logger.info("[RUC=%s] Retornando respuesta vacia | errors=%s", tax_id, errors)

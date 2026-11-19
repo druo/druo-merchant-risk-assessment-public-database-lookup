@@ -102,6 +102,7 @@ Un `tax_id` con formato invalido responde `422` antes de abrir el navegador (`NI
 - Flujo: Consulta RUC, tabla de la empresa y luego el boton "Representante(s) Legal(es)".
 - Representante legal por prioridad: GERENTE GENERAL, luego GERENTE, luego la primera fila de la tabla.
 - SUNAT detecta navegadores headless: el servicio borra el flag `navigator.webdriver` en cada pagina.
+- **Cloudflare:** la busqueda de SUNAT pasa por Cloudflare. Al headless shell que Playwright usa por defecto le responde 403 con su verificacion anti-bot (`cf-mitigated: challenge`), que nunca termina. Por eso el navegador corre Chromium completo en modo headless nuevo (`channel="chromium"` en `browser.py`, compartido con RUES y SII). Si aun asi Cloudflare bloquea, el error es `SUNAT bloqueo la consulta (verificacion anti-bot de Cloudflare)`, no un timeout.
 - A diferencia de CO, un RUC que no existe responde `found: false` con `errors: ["RUC no valido o no existe segun SUNAT"]`, asi que en PE `errors` no separa "no existe" de "no se pudo consultar".
 
 ### Chile (SII)
