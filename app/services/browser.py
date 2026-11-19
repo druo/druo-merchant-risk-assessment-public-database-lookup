@@ -21,6 +21,9 @@ async def get_browser() -> Browser:
         _playwright_instance = await async_playwright().start()
         _browser = await _playwright_instance.chromium.launch(
             headless=settings.browser_headless,
+            # Full Chromium in new headless mode. Playwright's default headless shell
+            # gets a Cloudflare bot check on SUNAT's search that never resolves.
+            channel="chromium",
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",

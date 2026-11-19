@@ -327,6 +327,7 @@ RUES no respondio. `found` tambien es `false`, pero `errors` trae el motivo.
 |-------|-------|
 | `Timeout esperando resultados de SUNAT (45000ms)` | SUNAT no respondio a tiempo |
 | `Timeout al consultar SUNAT` | Error general de timeout |
+| `SUNAT bloqueo la consulta (verificacion anti-bot de Cloudflare)` | Cloudflare respondio con su verificacion anti-bot en vez de la pagina de SUNAT. No dice nada del RUC: no se pudo consultar |
 | `RUC no valido o no existe segun SUNAT` | RUC invalido o inexistente |
 | `No se encontro boton Representante(s) Legal(es)` | Boton no disponible |
 | `No se encontro tabla de representantes legales` | Tabla no cargo |
