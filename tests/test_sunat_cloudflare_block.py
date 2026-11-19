@@ -142,6 +142,16 @@ class TestCloudflareBlock:
         assert result.registration.legal_name == "TUMI SOLUCIONES S.A.C."
         assert errors == []
 
+    async def test_challenge_that_resolves_to_unknown_ruc_reports_the_ruc(self):
+        """SUNAT's own "no existe" answer wins over a challenge it already got past."""
+        page = FakePage(CHALLENGE, "El número de RUC 20613643177 no es válido.", idle=True)
+        errors: list[str] = []
+
+        result = await _service()._do_lookup(page, RUC, 45000, errors)
+
+        assert result.found is False
+        assert errors == ["RUC no valido o no existe segun SUNAT"]
+
     async def test_real_timeout_without_challenge_keeps_the_timeout_error(self):
         page = FakePage(NORMAL, "", idle=False)
         errors: list[str] = []

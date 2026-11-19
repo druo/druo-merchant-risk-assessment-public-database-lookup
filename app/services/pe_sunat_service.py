@@ -127,15 +127,15 @@ class PeSunatService(BaseLookupService):
         page_text = await page.locator("body").inner_text()
         ruc_pattern = f"{tax_id} - "
 
-        # The check can also settle on its own page; that is a block, not "RUC not found"
-        if challenged and ruc_pattern not in page_text:
-            return self._blocked_response(tax_id, errors)
-
         # SUNAT shows "no es válido" or "no existe" for invalid/unknown RUCs
         if "no es válido" in page_text or "no existe" in page_text:
             logger.warning("[RUC=%s] RUC no valido o no existe segun SUNAT", tax_id)
             errors.append("RUC no valido o no existe segun SUNAT")
             return self._empty_response(tax_id, errors)
+
+        # The check can also settle on its own page; that is a block, not "RUC not found"
+        if challenged and ruc_pattern not in page_text:
+            return self._blocked_response(tax_id, errors)
 
         # Must have the RUC with " - " pattern (e.g. "20100055237 - ALICORP SAA")
         if ruc_pattern not in page_text:
